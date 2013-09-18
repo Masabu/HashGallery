@@ -7,6 +7,9 @@ from PIL import Image
 import string
 import random
 import shutil
+from PIL.ExifTags import TAGS
+from types import *
+
 
 #from PIL.ExifTags import TAG
 
@@ -78,6 +81,23 @@ def processImage(imgdir, fname,newname):
 
     img = Image.open(imgdir + '/' + fname)
 
+    exif_data = img._getexif()
+    ret = {}
+
+    if exif_data is not None:
+        print "There is EXIF data"
+        for tag, value in exif_data.items():
+            decoded = TAGS.get(tag, tag)
+            if decoded == 'Orientation':
+
+                if value == 3: img = img.rotate(180)
+                if value == 6: img = img.rotate(270)
+                if value == 8: img = img.rotate(90)
+
+                ret[decoded] = value
+    else:
+        print "no EXIF data"
+
     try:
         os.mkdir(folder + '/hashed')
     except OSError as exception:
@@ -91,12 +111,15 @@ def processImage(imgdir, fname,newname):
             raise
 
     img.save(imgdir + '/hashed/' + newname  + '.jpeg', 'jpeg')
-
     img.thumbnail((300, 300), Image.ANTIALIAS)
     img.save(imgdir + '/thumb/' + newname + '.jpeg', 'jpeg')
 
-def randomword(length):
-   return ''.join(random.choice(string.lowercase) for i in range(length))
+
+
+def randomword(length): 
+
+   combination = string.lowercase + '0123456789'
+   return ''.join(random.choice(combination) for i in range(length))
 
 def MoveOriginals(folder):
 
@@ -129,7 +152,7 @@ if __name__ == '__main__':
             fname  = fname.replace(folder + '/', "")
             newname = randomword(5)
             print folder, '/',  fname, '/', newname
-            processImage(folder, fname, newname)
+            print processImage(folder, fname, newname)
 
     else:
         print "update htmls only"
