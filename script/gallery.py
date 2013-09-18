@@ -4,27 +4,34 @@ import glob
 import errno
 import Image
 from PIL import Image
+import string
+import random
+import shutil
+
 #from PIL.ExifTags import TAG
 
-def MakeIndex(folder):
+def MakeIndex(folder, indexname):
 
     # create index hmtl
     htmls = []
-    for name in glob.glob(folder + '/*.jpg'):
+    for name in glob.glob(folder +  '/hashed/*.jpeg'):
 
-            name = name.replace(folder + '/', "")
+            name = name.replace(folder + '/hashed/', "")
 
-            html = '<a href="./thumb/' + name.replace("jpg", "html") + '">' + '<img src="./thumb/' + name + '" height="192" />' + '</a>'
+            html = '<a href="./thumb/' + name.replace("jpeg", "html") + '">' + '<img src="./thumb/' + name + '" height="192" />' + '</a>'
 
             htmls.append(html)
 
     #print htmls
+    '''
     title=os.getcwd()
     title=title.split("/")
     title=title.pop()
+    '''
+    title = 'Photo gallery of ' + folder
 
     # create index html inside the folder
-    file = open( folder + '/index.html', 'w')
+    file = open( folder + '/' + indexname + '.html', 'w')
     file.write('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"' + '\n')
     file.write('    "http://www.w3.org/TR/html4/loose.dtd">' + '\n')
     file.write('<html>' + '\n')
@@ -52,58 +59,95 @@ def MakeSubHtmls(folder):
 
     ## create individual html files
 
+    for name in glob.glob(folder +  '/hashed/*.jpeg'):
+
+        # remove path
+        image = name.replace(folder + '/hashed/', "")
+        html  = image.replace("jpeg", "html")
+
+        file = open(folder + '/thumb/' + html, 'w')
+        file.write('click to higher resolution image <br>')                
+        file.write('<a href="../hashed/' + image + '">' + '<img src="../thumb/' + image + '"  />' + '</a>')        
+        file.flush()
+        file.close()
+
+    return image, html, name
+
+
+def processImage(imgdir, fname,newname):
+
+    img = Image.open(imgdir + '/' + fname)
+
+    try:
+        os.mkdir(folder + '/hashed')
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
     try:
         os.mkdir(folder + '/thumb')
     except OSError as exception:
         if exception.errno != errno.EEXIST:
             raise
 
-    for name in glob.glob(folder + '/*.jpg'):
+    img.save(imgdir + '/hashed/' + newname  + '.jpeg', 'jpeg')
 
-        # remove path
-        image = name.replace(folder + '/', "")
-        html  = image.replace("jpg", "html")
+    img.thumbnail((300, 300), Image.ANTIALIAS)
+    img.save(imgdir + '/thumb/' + newname + '.jpeg', 'jpeg')
 
-        file = open(folder + '/thumb/' + html, 'w')
-        file.write('<a href="../' + image + '">' + '<img height="50%" src="../'  + image + '" />' + '</a>')
-        file.flush()
-        file.close()
+def randomword(length):
+   return ''.join(random.choice(string.lowercase) for i in range(length))
+
+def MoveOriginals(folder):
+
+    try:
+        os.mkdir(folder + '/originals')
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise 
+
+    for fname in glob.glob(folder + '/*.[jJ][pP][gG]'):
+        toname = fname.replace(folder + '/', "")
+        toname = folder + '/originals/' + toname
+        shutil.move(fname, toname)
 
 
-def processImage(imgdir, fname):
-    img = Image.open(imgdir + '/' + fname)
-
-    '''
-    exif = img._getexif()
-    if exif != None:
-        for tag, value in exif.items():
-            decoded = TAGS.get(tag, tag)
-            if decoded == 'Orientation':
-                if value == 3: img = img.rotate(180)
-                if value == 6: img = img.rotate(270)
-                if value == 8: img = img.rotate(90)
-                break
-    '''
-
-    img.thumbnail((192, 192), Image.ANTIALIAS)
-    img.save(imgdir + '/thumb/' + fname, 'jpeg')
 
 if __name__ == '__main__':
 
-
-
     parser=argparse.ArgumentParser(description='count number of tweets for each topic and send result to Redshift')
     parser.add_argument('folder' , type=str , help='specify image folder name')
+    parser.add_argument('--remove','-r'  , default='FALSE',  help='specify keyword', type = str)  
+    parser.add_argument('--update','-u'  , default='FALSE' ,  help='update images (else no update)', type = str)  
     args=parser.parse_args()
     folder    = args.folder 
 
-    MakeIndex(folder)
+    if args.update == "TRUE":
+        ## search folder and create files with hashed names with original size
+        ## and create thumbnail image with smaller size
+        for fname in glob.glob(folder + '/*.[jJ][pP][gG]'):
+            fname  = fname.replace(folder + '/', "")
+            newname = randomword(5)
+            print folder, '/',  fname, '/', newname
+            processImage(folder, fname, newname)
+
+    else:
+        print "update htmls only"
+
+    ## make index
+    ## use randomly generated name
+    MakeIndex(folder,randomword(8))
+
+    ## index for thumbnails
     MakeSubHtmls(folder)
 
-    for fname in glob.glob(folder + '/*.jpg'):
-        fname  = fname.replace(folder + '/', "")
-        print folder, '/',  fname
-        processImage(folder, fname)
+    if args.remove == "TRUE":
+
+        print 'remove originals into original folder'
+
+        MoveOriginals(folder)
+        
+
 
 
 
