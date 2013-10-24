@@ -17,12 +17,12 @@ def MakeIndex(folder, indexname):
 
     # create index hmtl
     htmls = []
-    for name in glob.glob(folder +  '/hashed/*.jpeg'):
+    types = ('*.jpg', '*.jpeg')
 
+    for t in types:
+        for name in glob.glob(folder +  '/hashed/' + t):
             name = name.replace(folder + '/hashed/', "")
-
             html = '<a href="./thumb/' + name.replace("jpeg", "html") + '">' + '<img src="./thumb/' + name + '" height="192" />' + '</a>'
-
             htmls.append(html)
 
     #print htmls
@@ -61,20 +61,21 @@ def MakeIndex(folder, indexname):
 def MakeSubHtmls(folder):        
 
     ## create individual html files
+    types = ('*.jpg', '*.jpeg')
 
-    for name in glob.glob(folder +  '/hashed/*.jpeg'):
+    for t in types:
+        for name in glob.glob(folder +  '/hashed/' + t):
 
-        # remove path
-        image = name.replace(folder + '/hashed/', "")
-        html  = image.replace("jpeg", "html")
+            # remove path
+            image = name.replace(folder + '/hashed/', "")
+            html  = image.replace("jpeg", "html")
 
-        file = open(folder + '/thumb/' + html, 'w')
-        file.write('click to higher resolution image <br>')                
-        file.write('<a href="../hashed/' + image + '">' + '<img src="../thumb/' + image + '"  />' + '</a>')        
-        file.flush()
-        file.close()
+            file = open(folder + '/thumb/' + html, 'w')
+            file.write('click to higher resolution image <br>')                
+            file.write('<a href="../hashed/' + image + '">' + '<img src="../thumb/' + image + '"  />' + '</a>')        
+            file.flush()
+            file.close()
 
-    return image, html, name
 
 
 def processImage(imgdir, fname,newname):
@@ -110,7 +111,12 @@ def processImage(imgdir, fname,newname):
         if exception.errno != errno.EEXIST:
             raise
 
-    img.save(imgdir + '/hashed/' + newname  + '.jpeg', 'jpeg')
+    source      = imgdir + '/' + fname
+    destination = imgdir + '/hashed/' + newname  + '.jpeg'
+
+    os.rename(source, destination)
+    #img.save(imgdir + '/hashed/' + newname  + '.jpeg', 'jpeg')
+
     img.thumbnail((300, 300), Image.ANTIALIAS)
     img.save(imgdir + '/thumb/' + newname + '.jpeg', 'jpeg')
 
@@ -164,11 +170,12 @@ if __name__ == '__main__':
     ## index for thumbnails
     MakeSubHtmls(folder)
 
-    if args.remove == "TRUE":
+    #if args.remove == "TRUE":
 
-        print 'remove originals into original folder'
+    #    print 'remove originals into original folder'
 
-        MoveOriginals(folder)
+    #    MoveOriginals(folder)
+		
         
 
 
