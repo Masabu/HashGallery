@@ -1,17 +1,3 @@
-'''
-import os
-import argparse
-import glob
-import errno
-import Image
-from PIL import Image
-import string
-import random
-import shutil
-from PIL.ExifTags import TAGS
-from types import *
-'''
-
 from PIL import Image
 import ExifTags
 import glob
@@ -19,7 +5,6 @@ import argparse
 import os
 import errno
 #from PIL.ExifTags import TAG
-
 
 def MakeIndex(folder, files):
 
@@ -59,6 +44,7 @@ def MakeIndex(folder, files):
     file.write('</head>' + '\n')
     file.write('<body>' + '\n')
     file.write('<h1>' + title + '</h1>' + '\n')
+    file.write('<a href="../index.html"> Go back to Root </a><br><br>')  
 
     for entry in htmls:
 
@@ -70,7 +56,7 @@ def MakeIndex(folder, files):
     file.flush()
     file.close()    
 
-def MakeSubHtmls(imagename, EXIF):        
+def MakeSubHtmls(imagename, EXIF,previous,next):        
 
     # make name into upper case
     imagename = imagename.upper()
@@ -92,9 +78,31 @@ def MakeSubHtmls(imagename, EXIF):
     file.write('<body>' + '\n')
     file.write('<h1>' + imagename + '</h1>' + '\n')
 
+
     ## image part
-    file.write('click to higher resolution image <br><br>')                
+    file.write('<a href="../index.html">Go back </a>')    
+    file.write('Click for higher resolution image <br><br>')
+
+
+    ## previous image
+
+    # make name into upper case
+    html_pre  = previous.upper()
+    html_pre  = html_pre.replace("JPEG", "html")
+    html_pre  = html_pre.replace("JPG" , "html")
+
+    ## next image
+    file.write('<a href="../thumbs/' + html_pre + '">Previous Image </a>')        
     file.write('<a href="../' + imagename + '">' + '<img src="../' + imagename + '" height="800"  />' + '</a>')        
+
+   # make name into upper case
+    html_next  = next.upper()
+    html_next  = html_next.replace("JPEG", "html")
+    html_next  = html_next.replace("JPG" , "html")
+
+    ## next image
+    file.write('<a href="../thumbs/' + html_next + '"> Next Image </a>')        
+
 
     ##EXIF data
 
@@ -150,37 +158,9 @@ def MakeSubHtmls(imagename, EXIF):
     file.flush()
     file.close()
 
-'''
-        ExifDict['Model']           = exif_data[272]
-        ExifDict['DateTime']        = exif_data[306]
-        ExifDict['ExposureTime']    = exif_data[33434]
-        ExifDict['FNumbe']          = exif_data[33437]
-        ExifDict['ISOSpeedRatings'] = exif_data[34855]
-'''
 
-'''
-    ## create individual html files
-    types = ('*.JPG', '*.JPEG','*.jpg', '*.jpeg')
 
-    for t in types:
-        for name in glob.glob(folder +  '/thumb/' + t):
-
-            # remove path
-            image = name.replace(folder + '/thumb/', "")
-
-            html  = image.replace("jpeg", "html")
-            html  = image.replace("JPEG", "html")
-            html  = image.replace("JPG", "html")
-            html  = image.replace("jpg", "html")
-
-            file = open(folder + '/thumb/' + html, 'w')
-            file.write('click to higher resolution image <br>')                
-            file.write('<a href="../' + image + '">' + '<img src="../thumb/' + image + '"  />' + '</a>')        
-            file.flush()
-            file.close()
-'''
-
-def createSmallerImage(folder, filename, size):
+def createSmallerImage(folder, filename, size, update):
 
     ## make thumbnail folder
     try:
@@ -208,12 +188,25 @@ def createSmallerImage(folder, filename, size):
                 if value == 8: img = img.rotate(90)
 
         # store meta data for index
-        ExifDict['Model']           = exif_data[272]
+        
         ExifDict['DateTime']        = exif_data[306]
-        ExifDict['ExposureTime']    = exif_data[33434]
-        ExifDict['FNumbe']          = exif_data[33437]
-        ExifDict['ISOSpeedRatings'] = exif_data[34855]
-
+        
+        try:
+            ExifDict['ExposureTime']    = exif_data[33434]
+        except:
+            ExifDict['ExposureTime'] = 0
+        try:
+            ExifDict['FNumbe']          = exif_data[33437]
+        except:
+            ExifDict['FNumbe'] = (0,0)
+        try:
+            ExifDict['ISOSpeedRatings'] = exif_data[34855]
+        except:
+            ExifDict['ISOSpeedRatings'] = 0
+        try:
+            ExifDict['Model']           = exif_data[272]
+        except:
+            ExifDict['Model'] = 'Missing'
         try:
             ExifDict['Orientation']     = exif_data[274]
         except:
@@ -223,40 +216,23 @@ def createSmallerImage(folder, filename, size):
         except:
             pass
 
-        '''
-        271 Make Canon
-        272 Model Canon EOS 6D
-        274 Orientation 1
-        306 DateTime 2015:01:06 11:00:59
-        33434 ExposureTime (1, 160)
-        33437 FNumber (56, 10)
-        34855 ISOSpeedRatings 100
-        37378 ApertureValue (327680, 65536)
-
-        271 Make SIGMA
-        272 Model SIGMA dp2 Quattro
-        305 Software Adobe Photoshop Lightroom 5.7 (Windows)
-        306 DateTime 2015:01:10 02:13:17
-        33434 ExposureTime (1, 60)
-        33437 FNumber (28, 10)
-        34855 ISOSpeedRatings 100
-        37378 ApertureValue (2970854, 1000000)
-        '''
-
     else:
         print 'No Exit data, will not be rotated'
 
-    ## export thumnail file, clean up buffer otherwise it can corrupt!!
-    out_file = open( folder + '/thumbs/' + filename, 'wb' )
-    img.thumbnail(size, Image.ANTIALIAS)
-    img.save( out_file, 'JPEG' )  # Must specify desired format here
-    out_file.flush()
-    out_file.close()
+    # do not save jpeg file if update switch is TRUE
+    if update == 'FALSE':
+
+        ## export thumnail file, clean up buffer otherwise it can corrupt!!
+        out_file = open( folder + '/thumbs/' + filename, 'wb' )
+        img.thumbnail(size, Image.ANTIALIAS)
+        img.save( out_file, 'JPEG' )  # Must specify desired format here
+        out_file.flush()
+        out_file.close()
 
     return ExifDict
 
 
-def main(folder):
+def main(folder, update):
 
     print 'process images inside', folder
 
@@ -278,15 +254,28 @@ def main(folder):
     print filenames
 
 
+    i = 0
     for f in filenames:
 
         print 'processing file:', f
         ## create smaller image into thumbmail folder
-        ExifDict = createSmallerImage(folder, f,(500, 500))
+        ExifDict = createSmallerImage(folder, f,(500, 500), update)
         #print ExifDict
 
+        if i == 0:
+            previous = filenames[i-1]
+            next     = filenames[-1]
+        elif i == len(filenames)-1:
+            previous = filenames[i-1]
+            next     = filenames[0]
+        else:
+            previous = filenames[i-1]
+            next     = filenames[i+1]
+
         ## create htmls
-        MakeSubHtmls(f, ExifDict)
+        MakeSubHtmls(f, ExifDict,previous,next)
+
+        i+=1
 
 
     ## create main index
@@ -304,20 +293,10 @@ def insensitive_glob(pattern):
 if __name__ == '__main__':
 
     parser=argparse.ArgumentParser(description='Create thumbnail keeping original file names')
-
     parser.add_argument('folder' , type=str , help='specify image folder name')
-    
+    parser.add_argument('--update','-u'  , default='FALSE' ,  help='update images (else no update)', type = str) 
+
     args=parser.parse_args()
     folder= args.folder 
 
-    main(folder)
-
-
-    ## make index.html
-    #print 'create index.html in root'
-    #MakeIndex(folder,'index')
-  
-    ## create thumbnails
-    #print 'create sub-htmls in thumbnail folder'
-    #MakeSubHtmls(folder)
-
+    main(folder, args.update)
