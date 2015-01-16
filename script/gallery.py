@@ -4,7 +4,13 @@ import glob
 import argparse
 import os
 import errno
+import markup
+from markup import oneliner as e
+
 #from PIL.ExifTags import TAG
+
+
+
 
 def MakeIndex(folder, files):
 
@@ -17,10 +23,10 @@ def MakeIndex(folder, files):
         print 'file name', fname
 
         # replace longer string first
-        # make name into upper case
-        fname = fname.upper()
-        html_name = fname.replace("JPEG", "html")
-        html_name = fname.replace("JPG" , "html")
+        # make name into upper case       
+        html  = fname.upper()
+        html_name = html.replace("JPEG", "html")
+        html_name = html.replace("JPG" , "html")
 
         print 'name of liked file', fname 
 
@@ -59,9 +65,10 @@ def MakeIndex(folder, files):
 def MakeSubHtmls(imagename, EXIF,previous,next):        
 
     # make name into upper case
-    imagename = imagename.upper()
-    html  = imagename.replace("JPEG", "html")
-    html  = imagename.replace("JPG" , "html")
+   
+    html  = imagename.upper()
+    html  = html.replace("JPEG", "html")
+    html  = html.replace("JPG" , "html")
 
     file = open(folder + '/thumbs/' + html, 'w')
 
@@ -228,11 +235,13 @@ def createSmallerImage(folder, filename, size, update):
         img.save( out_file, 'JPEG' )  # Must specify desired format here
         out_file.flush()
         out_file.close()
+    else:
+        print 'do not update jpeg files, update htmls only'
 
     return ExifDict
 
 
-def main(folder, update):
+def main2(folder, update):
 
     print 'process images inside', folder
 
@@ -290,13 +299,138 @@ def insensitive_glob(pattern):
     return glob.glob(''.join(map(either,pattern)))
 
 
+def SuperIndex(folder):
+
+    # glob folder names
+    # assumes ISO-date  20xx-xx-xx 
+
+    print '\n'
+    print '*********************************************************************'
+    print "This program assumes ISO-date format directories such as 2015-01-05"
+    print '*********************************************************************\n'
+
+    for directory in insensitive_glob('????-??-??'):
+
+        print directory
+
+    ## create index.html using above list
+
+def MakeHTMLS(filenames, folder):
+
+    try:
+        import markup
+    except:
+        print __doc__
+        sys.exit( 1 )
+
+    items  = ( "Item one", "Item two", "Item three", "Item four" )
+    paras  = ( "This was a fantastic list.", "And now for something completely different." )
+    images = ( "./thumbs/_MG_4925.jpg","./thumbs/_MG_4944.jpg","./thumbs/_MG_4956.jpg","./thumbs/_MG_4981.jpg" )
+    links  = ("./thumbs/_MG_4925.jpg","./thumbs/_MG_4944.jpg","./thumbs/_MG_4956.jpg","./thumbs/_MG_4981.jpg")
+
+    page = markup.page( )
+    page.init( title="My title",
+    css=( '../one.css', 'two.css' ), 
+    header="Something at the top", 
+    footer="The bitter end." )
+
+    ## define lightbox
+    page.link(href="../lightbox/css/lightbox.css",  rel="stylesheet")
+    page.script("" , src="../lightbox/js/jquery-1.11.0.min.js")
+    page.script( "", src="../lightbox/js/lightbox.js")
+
+    ## any info
+
+    page.ul( class_='mylist' )
+    page.li( items, class_='myitem' )
+    page.ul.close( )  
+    page.p( paras )
+
+    ## start of gallery area
+    page.div(class_ = "gallery")
+
+    ## i is an index that starts with 0
+    for i in range(len(filenames)):
+
+        mod = i % 3
+
+        ## close div if it is 3rd of 3
+        if mod == 2:
+
+            page.a( e.img( src=filenames[i] , height=300 ), href = filenames[i], class_='example-image-link', data_lightbox="example-set" )
+            page.div.close( ) 
+
+        ## start div row if it is first of 3
+        elif mod == 0:
+            page.div(class_ = "row")
+            page.a( e.img( src=filenames[i] , height=300 ), href = filenames[i], class_='example-image-link', data_lightbox="example-set" )
+
+        else:
+            page.a( e.img( src=filenames[i] , height=300 ), href = filenames[i], class_='example-image-link', data_lightbox="example-set" )
+
+ 
+    page.div.close( ) 
+
+    file = open( folder + '/' + 'index.html', 'w')
+
+    print >>file, page
+
+    file.flush()
+    file.close()  
+
+
+def main(folder):
+
+    print 'process images inside', folder
+
+    # create index.html inside specific image folder
+    htmls = []
+    filetypes = ('*.jpg', '*.jpeg')
+
+    ## container to store image names
+    filenames = []
+
+    for t in filetypes:
+        for fullpath in insensitive_glob(folder + '/'  + t):
+
+            #print 'match pattern', t, 'file is matched is ', fullpath
+            # remove path
+            fname = fullpath.replace(folder + '/', "")
+            filenames.append(fname)
+
+    print '\n', len(filenames), 'images found in ', folder, '\n'
+    print filenames
+
+    return filenames
+
+##########################################################################
+##########################################################################
+##########################################################################
+
 if __name__ == '__main__':
+
+    '''
+    the program can scan directory and update all the images recursively
+
+    two options:
+
+    (1) full update -- update jpeg thumbnails and everything
+    (2) update htmls only
+
+    '''
+
 
     parser=argparse.ArgumentParser(description='Create thumbnail keeping original file names')
     parser.add_argument('folder' , type=str , help='specify image folder name')
-    parser.add_argument('--update','-u'  , default='FALSE' ,  help='update images (else no update)', type = str) 
+    parser.add_argument('--fullupdate','-f'  , default='FALSE' ,  help='TRUE = full update, default is html only', type = str) 
 
     args=parser.parse_args()
     folder= args.folder 
 
-    main(folder, args.update)
+    #SuperIndex(folder)
+    #MakeHTMLS()
+    filenames = main(folder)
+    MakeHTMLS(filenames, folder)
+
+
+    #main(folder, args.update)
