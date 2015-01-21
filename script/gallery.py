@@ -7,6 +7,7 @@ import errno
 import markup
 from markup import oneliner as e
 import json
+import random
 
 ## process single image
 def CreateSmallerImages(folder, filename, size, update):
@@ -38,17 +39,20 @@ def CreateSmallerImages(folder, filename, size, update):
                 if value == 8: img = img.rotate(90)
 
         # store meta data for index
-        
-        ExifDict['DateTime']        = exif_data[306]
-        
+
+        try:        
+            ExifDict['DateTime']        = exif_data[306]
+        except:
+            ExifDict['ExposureTime']    = 'Missing'
+
         try:
             ExifDict['ExposureTime']    = exif_data[33434]
         except:
-            ExifDict['ExposureTime'] = 0
+            ExifDict['ExposureTime']    = 0
         try:
             ExifDict['FNumbe']          = exif_data[33437]
         except:
-            ExifDict['FNumbe'] = (0,0)
+            ExifDict['FNumbe']          = (0,0)
         try:
             ExifDict['ISOSpeedRatings'] = exif_data[34855]
         except:
@@ -56,7 +60,7 @@ def CreateSmallerImages(folder, filename, size, update):
         try:
             ExifDict['Model']           = exif_data[272]
         except:
-            ExifDict['Model'] = 'Missing'
+            ExifDict['Model']           = 'Missing'
         try:
             ExifDict['Orientation']     = exif_data[274]
         except:
@@ -69,7 +73,6 @@ def CreateSmallerImages(folder, filename, size, update):
     else:
         print 'No Exit data, will not be rotated'
 
-
     ## export thumnail file, clean up buffer otherwise it can corrupt!!
 
     if update == 'FALSE':
@@ -80,6 +83,8 @@ def CreateSmallerImages(folder, filename, size, update):
         img.save( out_file, 'JPEG' , quality=quality_val)  # Must specify desired format here
         out_file.flush()
         out_file.close()
+    else:
+        pass
 
     return ExifDict
 
@@ -116,6 +121,8 @@ def MakeHTMLS(filenames, folder, EXIFs, segment, MaxSegment):
 
     ## test
     page.H1("Photo Gallery " + folder)
+
+    page.h2(e.a( 'Go Back to the main index' , href = '../index.html'))
 
     for s in range(MaxSegment):
 
@@ -168,7 +175,6 @@ def main(folder, update):
             filenames.append(fname)
 
     print '\n', len(filenames), 'images found in ', folder, '\n'
-    print filenames
 
     EXIFs = {}
 
@@ -187,6 +193,10 @@ def main(folder, update):
     ## if number of images are large, split into multiple htmls    
     segment = len(filenames) / 50
 
+    if segment == 0:
+
+        MakeHTMLS(filenames, folder, EXIFs, 0,0)
+
     for s in range(segment):
 
         beg = s * 50
@@ -199,7 +209,10 @@ def main(folder, update):
             print s, segment - 1, beg, "end"
             MakeHTMLS(filenames[beg:], folder, EXIFs, s, segment)
 
-def SuperIndex(update):
+    return filenames
+        
+
+def SuperIndex(folder, update, NSample):
 
     # glob folder names
     # assumes ISO-date  20xx-xx-xx 
@@ -209,12 +222,51 @@ def SuperIndex(update):
     print "This program assumes ISO-date format directories such as 2015-01-05"
     print '*********************************************************************\n'
 
+    Directories = []
+    CoverPhotos = []
+
     for directory in insensitive_glob('????-??-??'):
 
-        print "processing", directory
+        filenames = main(directory , update)
+        Directories.append(directory + '/index.html')
 
-        main(directory , update)
- 
+        cover = []
+        # select 5 images
+        for i in range(NSample):
+
+            rand = random.randint(0, len(filenames)-1)
+            #print i, len(filenames), rand
+            cover.append(filenames[rand])
+        
+        CoverPhotos.append(cover)
+
+    ## create super index file
+    ## initialization 
+
+    page = markup.page( )
+    page.init( title="Photo Gallery",
+    css=( '../one.css'), 
+    header="", 
+    footer="Produced by Pig Thumbnail Generator" )
+
+    page.H1("Photo Gallery")
+
+    ## take random sample of photos
+    ## to create cover
+
+    for i in range(len(Directories)):
+
+        page.p(Directories[i].replace("/index.html",""))
+
+        for j in range(NSample):
+            page.a(e.img(height=160, src= Directories[i].replace("index.html","") + 'thumbs/' + CoverPhotos[i][j]  ) ,href = Directories[i])
+        page.hr()
+
+    file = open( "index.html" , 'w')
+    print >>file, page
+    file.flush()
+    file.close()  
+
 
 ##########################################################################
 ##########################################################################
@@ -233,14 +285,20 @@ if __name__ == '__main__':
     '''
 
     parser=argparse.ArgumentParser(description='Create thumbnail keeping original file names')
-    #parser.add_argument('folder' , type=str , help='specify image folder name')
-    parser.add_argument('--update','-f'  , default='FALSE' ,  help='TRUE = full update, default is html only', type = str)
+    parser.add_argument('--folder' , default='empty_folder', type=str , help='specify image folder name')
+    parser.add_argument('--update', default='FALSE' ,  help='TRUE = full update, default is html only', type = str)
+    parser.add_argument('--Nsample', default=10 ,  help='Number of sample images', type = int)
  
+
     args=parser.parse_args()
 
-    SuperIndex(args.update)
+    if args.folder != 'empty_folder':
+        print "update folder"
+        main(args.folder, args.update)
+    elif args.folder == 'empty_folder':
+        print "update everything"
+        SuperIndex(args.folder, args.update, args.Nsample)
 
-    #main(args.folder , args.update)
 
 
 
