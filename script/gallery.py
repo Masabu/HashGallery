@@ -4,7 +4,8 @@ import imageio
 #import ExifTags
 import glob
 import argparse
-# import os
+import re
+import os
 # import errno
 # import markup
 # from markup import oneliner as e
@@ -24,115 +25,70 @@ inputs
 (6) create html file 
 '''
 
-def main(folder, update):
-
-    print 'process images inside', folder
-
-#     # create index.html inside specific image folder
-#     # container to store image names
- 
-#     htmls = []
-#     filetypes = ('*.jpg', '*.jpeg')
-#     filenames = []
-
-#     ## obtain file names
-#     for t in filetypes:
-#         for fullpath in insensitive_glob(folder + '/'  + t):
-
-#             #print 'match pattern', t, 'file is matched is ', fullpath
-#             # remove path
-#             fname = fullpath.replace(folder + '/', "")
-#             filenames.append(fname)
-
-#     print '\n', len(filenames), 'images found in ', folder, '\n'
 
 
+def main(folder, output):
 
-# ## process single image
-# def CreateSmallerImages(folder, filename, size, update):
+    dir_name = re.search('....-..-..', folder)
 
-#     ## make thumbnail folder
-#     try:
-#         os.mkdir(folder + '/thumbs')
-#     except OSError as exception:
-#         if exception.errno != errno.EEXIST:
-#             raise
+    print ''
+    print 'process images inside', folder, 'directory name is', dir_name.group(0)
 
-#     # store EXIF info as list of dictionary
-#     ExifDict = {}
+    print 'jpeg files will be saved within', output , 'sub directory of', dir_name.group(0)
 
-#     img = Image.open(folder + '/' + filename)
-#     exif_data = img._getexif()
 
-#     if exif_data is not None:
+    try:
+        os.mkdir(output + '/' + dir_name.group(0))
 
-#         #print exif_data
-#         for key, value in sorted(exif_data.items()):
+    except OSError as exception:
+            print OSError
+            print 'folder exits - moving on'
+        #if exception.errno != errno.EEXIST:
+        #    raise
 
-#             keyname = ExifTags.TAGS.get(key)
+    # define container to store image names
+    #htmls = []
+    filetypes = ('*.ORF', '*.DNG', '*.CR2')
+    filenames = []
+
+    ## obtain file names
+    for t in filetypes:
+        for fullpath in insensitive_glob(folder + '/'  + t):
+            #print 'match pattern', t, 'matched file is ', fullpath
             
-#             if keyname == 'Orientation':
+            # remove path
+            fname = fullpath.replace(folder + '/', "")
+            names = re.split('/', fname)
+            rname = re.split('\.', names[-1])
 
-#                 if value == 3: img = img.rotate(180)
-#                 if value == 6: img = img.rotate(270)
-#                 if value == 8: img = img.rotate(90)
-
-#         # store meta data for index
-
-#         try:        
-#             ExifDict['DateTime']        = exif_data[306]
-#         except:
-#             ExifDict['ExposureTime']    = 'Missing'
-
-#         try:
-#             ExifDict['ExposureTime']    = exif_data[33434]
-#         except:
-#             ExifDict['ExposureTime']    = 0
-#         try:
-#             ExifDict['FNumbe']          = exif_data[33437]
-#         except:
-#             ExifDict['FNumbe']          = (0,0)
-#         try:
-#             ExifDict['ISOSpeedRatings'] = exif_data[34855]
-#         except:
-#             ExifDict['ISOSpeedRatings'] = 0
-#         try:
-#             ExifDict['Model']           = exif_data[272]
-#         except:
-#             ExifDict['Model']           = 'Missing'
-#         try:
-#             ExifDict['Orientation']     = exif_data[274]
-#         except:
-#             pass
-#         try:
-#             ExifDict['ApertureValue']   = exif_data[37378]
-#         except:
-#             pass
-
-#     else:
-#         print 'No Exit data, will not be rotated'
-
-#     ## export thumnail file, clean up buffer otherwise it can corrupt!!
-
-#     if update == 'FALSE':
-
-#         out_file = open( folder + '/thumbs/' + filename, 'wb' )
-#         img.thumbnail(size, Image.ANTIALIAS)
-#         quality_val = 90
-#         img.save( out_file, 'JPEG' , quality=quality_val)  # Must specify desired format here
-#         out_file.flush()
-#         out_file.close()
-#     else:
-#         pass
-
-#     return ExifDict
+            outfile = output +  dir_name.group(0) + '/'  + rname[0] + '.jpeg'
 
 
-# # from stackoverflow :)
-# def insensitive_glob(pattern):
-#     def either(c):
-#         return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
-#     return glob.glob(''.join(map(either,pattern)))
+            print 'ext = ',t[-3:], ', jpeg file=' , outfile , ', input = ', fname
+
+            filenames.append(fname)
+
+            # produce jpeg file
+            to_jpg(fname,outfile)
+
+
+
+    print '\n', len(filenames), 'images found in ', folder, '\n'
+
+
+# from stackoverflow :)
+def insensitive_glob(pattern):
+    def either(c):
+        return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
+    return glob.glob(''.join(map(either,pattern)))
+
+# convert raw image into jpeg and save
+def to_jpg(raw_file, outfile):
+
+    raw = rawpy.imread(raw_file)
+    img = raw.postprocess()
+
+    imageio.imsave( outfile, img, quality=50)
 
 
 # def MakeHTMLS(filenames, folder, EXIFs, segment, MaxSegment):
@@ -325,18 +281,26 @@ if __name__ == '__main__':
     parser.add_argument('-f' , default='empty_folder', type=str , help='specify input folder name')
     parser.add_argument('-o' , default='empty_folder', type=str , help='specify output folder name')
 
-
     #parser.add_argument('--update', default='FALSE' ,  help='TRUE = full update, default is html only', type = str)
     #parser.add_argument('--Nsample', default=10 ,  help='Number of sample images', type = int)
  
-
     args=parser.parse_args()
 
-    if args.f != 'empty_folder':
-        print "update folder"
-        main(args.f)
-    elif args.f == 'empty_folder':
-        print "Please specify folder!!"
+    if args.f == 'empty_folder':
+        print "Please specify input folder"
+    if args.o == 'empty_folder':
+        print "Please specify output folder"
+    elif args.f != 'empty_folder':
+        if args.o != 'empty_folder':
+            print "looks good"
+            print "input folder is" ,args.f
+            print "output folder is", args.o
+            main(args.f,args.o)
+        else:
+            print "Please specify output folder"
+
+
+
 #elif args.folder == 'empty_folder':
 #    print "update everything"
 #         SuperIndex(args.folder, args.update, args.Nsample)
