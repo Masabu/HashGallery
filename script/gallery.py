@@ -6,6 +6,9 @@ import re
 import os
 import errno
 
+import piexif
+import exifread
+
 
 '''
 # outline of the program
@@ -62,6 +65,9 @@ def main(folder, output):
             # produce jpeg file
             to_jpg(fname,outfile)
 
+            # add exif
+            add_exif(fname,outfile)
+
     print '\n', len(filenames), 'images found in ', folder, '\n'
 
 # glob case insensitive
@@ -70,11 +76,28 @@ def insensitive_glob(pattern):
         return '[%s%s]'%(c.lower(),c.upper()) if c.isalpha() else c
     return glob.glob(''.join(map(either,pattern)))
 
+
+# assign exif
+def add_exif(raw_file,outfile): 
+
+    f = open(raw_file, 'rb')
+    tags = exifread.process_file(f)
+
+    exif_ifd = {piexif.ExifIFD.DateTimeOriginal: str(tags['EXIF DateTimeOriginal'])}
+
+    # create nested dic
+    exif_dict = {"Exif":exif_ifd}
+
+    # turn dict into format that can be sent as exif
+    exif_dic_bytes = piexif.dump(exif_dict)
+    # write exif into jpeg file
+    piexif.insert(exif_dic_bytes, outfile)
+
 # convert raw image into jpeg and save
 def to_jpg(raw_file, outfile):
 
     raw = rawpy.imread(raw_file)  
-    img = raw.postprocess()
+    img = raw.postprocess(use_auto_wb=True)
 
     imageio.imwrite( outfile, img, format ='JPEG-PIL' , quality=60)
 
